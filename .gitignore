@@ -1,0 +1,8 @@
+build/
+dist/
+.DS_Store
+assets/icon.iconset/
+.playwright-mcp/
+STATUS.md
+TICKET.md
+.crush/

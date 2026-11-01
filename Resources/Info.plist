@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Track Livery</string>
+	<key>CFBundleDisplayName</key>
+	<string>Track Livery</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.alexisarmstrong.tracklivery</string>
+	<key>CFBundleVersion</key>
+	<string>__BUILD__</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleExecutable</key>
+	<string>TrackLivery</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Track Livery adds converted tracks to your Music library and checks which tracks are already there. It never deletes anything from your library.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Track Livery watches your Downloads folder for new music when you turn watching on in Settings.</string>
+	<key>SUFeedURL</key>
+	<string>https://github.com/Alexis1537/track-livery/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Ng5UFawI+LIH+L6RnMdL8mBgOttXZQc3flxeV/bL9Tk=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Audio file (WAV, AIFF, FLAC, MP3, AAC)</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.microsoft.waveform-audio</string>
+				<string>public.aiff-audio</string>
+				<string>public.aifc-audio</string>
+				<string>org.xiph.flac</string>
+				<string>public.mp3</string>
+				<string>public.mpeg-4-audio</string>
+				<string>public.audio</string>
+			</array>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+		</dict>
+	</array>
+</dict>
+</plist>

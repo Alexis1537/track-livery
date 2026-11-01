@@ -1,0 +1,25 @@
+Track Livery
+Copyright (c) 2026 Alexis Armstrong. Released under the MIT licence (see LICENSE).
+
+Visual ideas
+------------
+The look of the main window takes its ideas from three designs published on
+21st.dev. No code from them is included: Track Livery's window is an original
+native implementation in Swift/AppKit. With thanks to their authors:
+
+- "Interactive Tech Stack Bento Grid with Hover Effects" by themeocean
+  (the glowing cards and the step log)
+- "Sonic Waveform" by dhileepkumargm (the flowing lines along the bottom)
+- "Siri Wave" on 21st.dev (the colour wave in the drop zone)
+
+Sparkle
+-------
+Track Livery includes Sparkle 2.10.0 (https://sparkle-project.org), the update
+framework, unmodified, in Frameworks/Sparkle.framework. Sparkle is distributed
+under its own licence, reproduced in Frameworks/Sparkle-LICENSE.
+
+Trade marks
+-----------
+"Beatport" and other store names mentioned in the code or documentation are
+trade marks of their respective owners. Track Livery is not affiliated with or
+endorsed by any music store.
