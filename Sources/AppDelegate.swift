@@ -5,7 +5,11 @@ import Sparkle
 /// Keeps the app in the Dock and routes files dropped on the Dock icon
 /// (or opened via Finder) into the drop window.
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate, SPUUpdaterDelegate {
-    private var dropWindow: DropWindow!
+    /// Made in applicationDidFinishLaunching. macOS can deliver a Dock click or a dropped file
+    /// before that (a click while the app is still starting), so every use must allow for nil.
+    private var dropWindow: DropWindow?
+    /// Files dropped on the Dock icon before the window exists; enqueued once it does.
+    private var earlyFiles: [String] = []
     /// Sparkle: checks GitHub for a newer signed version once a day and asks before installing.
     private lazy var updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: nil)
 
@@ -19,8 +23,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         center.setNotificationCategories([UNNotificationCategory(identifier: "NEW_DOWNLOADS", actions: [importAction],
                                                                  intentIdentifiers: [], options: [])])
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
-        dropWindow = DropWindow()
-        dropWindow.show()
+        let window = DropWindow()
+        dropWindow = window
+        window.show()
+        earlyFiles.forEach { window.enqueue(path: $0) }
+        earlyFiles = []
         _ = updater
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -29,7 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     // Info.plist). Implementing only this one keeps it active alongside the
     // window's own drop zone.
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        dropWindow.enqueue(path: filename)
+        if let w = dropWindow { w.enqueue(path: filename) } else { earlyFiles.append(filename) }
         return true
     }
 
@@ -72,7 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         NSApp.mainMenu = main
     }
 
-    @objc private func openSettings() { dropWindow.openSettings() }
+    @objc private func openSettings() { dropWindow?.openSettings() }
 
     /// Never restart for an update in the middle of an import: wait until the queue is empty.
     func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
@@ -90,7 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         if response.notification.request.content.categoryIdentifier == "NEW_DOWNLOADS" {
             DispatchQueue.main.async {
-                if response.actionIdentifier == "IMPORT" { self.dropWindow.importFromNotification() }
+                if response.actionIdentifier == "IMPORT" { self.dropWindow?.importFromNotification() }
                 else { NSApp.activate(ignoringOtherApps: true) }
             }
         }
@@ -105,11 +112,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     /// Clicking the Dock icon brings the window back after it was closed or minimised.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { dropWindow.show() }
+        if !flag { dropWindow?.show() }
         return true
     }
 
-    @objc private func showMainWindow() { dropWindow.show() }
+    @objc private func showMainWindow() { dropWindow?.show() }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false // stay in the Dock, ready for the next drop
