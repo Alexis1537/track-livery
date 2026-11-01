@@ -15,15 +15,17 @@ mkdir -p dist/stage
 cp -R "build/${APP_NAME}.app" dist/stage/
 ln -s /Applications dist/stage/Applications
 cp Resources/AppIcon.icns dist/stage/.VolumeIcon.icns
-python3 assets/dmg_background.py dist/stage/.background.png
+mkdir -p dist/stage/.background
+python3 assets/dmg_background.py dist/stage/.background/background.png
 
 # Create a read-write image, arrange the icons, then compress it read-only.
 hdiutil create -volname "Track Livery" -srcfolder dist/stage -ov -format UDRW dist/tmp.dmg > /dev/null
 # Attach without an explicit mount point: a custom --mountPoint under the repo
 # is denied in some contexts, /Volumes always works.
-DEVICE=$(timeout 60 hdiutil attach dist/tmp.dmg -nobrowse 2>/dev/null | grep '/Volumes/' | awk '{print $1}' | head -1)
+DEVICE=$(timeout 60 hdiutil attach dist/tmp.dmg 2>/dev/null | grep '/Volumes/' | awk '{print $1}' | head -1)
 [ -n "$DEVICE" ] || { echo "attach failed"; exit 1; }
 echo "mounted $DEVICE"
+sleep 2   # let Finder register the new disk before arranging it
 
 # Arrange the icons and set the background. This needs Finder automation
 # permission; if it is not granted yet, the DMG is still created (just with
@@ -36,7 +38,7 @@ tell application "Finder"
     set toolbar visible of container window to false
     set statusbar visible of container window to false
     set bounds of container window to {72, 72, 712, 492}
-    set background picture of container window to file ".background.png"
+    set background picture of container window to file ".background:background.png"
     set arrangement of container window to not arranged
     set icon size of container window to 96
     set position of item "TrackLivery.app" of container window to {150, 180}
