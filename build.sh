@@ -4,7 +4,10 @@
 #
 # Signing: by default the app is signed with the Developer ID certificate, with the
 # hardened runtime and a secure timestamp, as Apple's notarisation requires.
-# SIGN_IDENTITY=- ./build.sh makes a local, ad-hoc signed build instead (no network).
+# SIGN_IDENTITY=- ./build.sh makes a local, ad-hoc signed test copy instead (no network). It has
+# its own identity (com.alexisarmstrong.tracklivery.test), so its settings are separate from
+# the installed app's and it can run beside it. Start it with the folder watcher off:
+#   build/TrackLivery.app/Contents/MacOS/TrackLivery -watchEnabled NO
 # Any signing failure stops the build.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -25,7 +28,11 @@ swiftc -swift-version 5 -O \
   -o "$APP/Contents/MacOS/TrackLivery" \
   Sources/*.swift
 
-sed -e "s/__VERSION__/$VERSION/g" -e "s/__BUILD__/$BUILD_NUMBER/g" Resources/Info.plist > "$APP/Contents/Info.plist"
+BUNDLE_ID=com.alexisarmstrong.tracklivery
+[ "$SIGN_IDENTITY" = "-" ] && BUNDLE_ID=com.alexisarmstrong.tracklivery.test
+sed -e "s/__VERSION__/$VERSION/g" -e "s/__BUILD__/$BUILD_NUMBER/g" \
+    -e "s/>com\.alexisarmstrong\.tracklivery</>$BUNDLE_ID</" \
+    Resources/Info.plist > "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 ditto Frameworks/Sparkle.framework "$APP/Contents/Frameworks/Sparkle.framework"
 

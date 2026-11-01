@@ -31,6 +31,9 @@ if let cliIndex = arguments.firstIndex(of: "--cli") {
     exit(0)
 }
 
+// An unexpected exception crashes the app with a crash report naming the line, instead of
+// AppKit quietly abandoning start-up and leaving a process with no window (build 104).
+UserDefaults.standard.register(defaults: ["NSApplicationCrashOnExceptions": true])
 let app = NSApplication.shared
 app.setActivationPolicy(.regular)
 let appDelegate = AppDelegate()

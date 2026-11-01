@@ -11,6 +11,34 @@ DMG="dist/TrackLivery-${VERSION}-build${BUILD_NUMBER}.dmg"
 
 ./build.sh
 
+# Checks before anything is packed or sent to Apple. Any failure stops the release.
+# (Added 1 Nov 2026: build 104 passed every other step yet never opened, and a copy
+# that cannot open cannot update itself.)
+CHECKS=$(mktemp -d)
+SRC=(); for f in Sources/*.swift; do [ "$f" = Sources/main.swift ] || SRC+=("$f"); done
+swiftc -swift-version 5 -F Frameworks -framework Sparkle \
+  -Xlinker -rpath -Xlinker "$PWD/Frameworks" -o "$CHECKS/safety" Tests/SafetyChecks.swift "${SRC[@]}"
+"$CHECKS/safety"
+
+# The built app must open and show its window within 8 seconds, with no exception logged.
+# The folder watcher and update checks are switched off for this run only.
+"build/${APP_NAME}.app/Contents/MacOS/${APP_NAME}" -watchEnabled NO -SUEnableAutomaticChecks NO \
+  > "$CHECKS/launch.log" 2>&1 &
+PID=$!
+sleep 8
+WINDOW=$(swift -e "import CoreGraphics
+let l = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]] ?? []
+let mine = l.filter { (\$0[kCGWindowOwnerPID as String] as? Int) == $PID && (\$0[kCGWindowLayer as String] as? Int) == 0 }
+print(mine.contains { ((\$0[kCGWindowBounds as String] as? [String: Any])?[\"Width\"] as? Double ?? 0) > 200 } ? \"yes\" : \"no\")")
+ALIVE=no; kill -0 "$PID" 2>/dev/null && ALIVE=yes
+kill "$PID" 2>/dev/null || true
+wait "$PID" 2>/dev/null || true
+if [ "$ALIVE" != yes ] || [ "$WINDOW" != yes ] || grep -qE "Exception|FAULT" "$CHECKS/launch.log"; then
+  echo "LAUNCH CHECK FAILED: running=$ALIVE window=$WINDOW"; tail -20 "$CHECKS/launch.log"; exit 1
+fi
+echo "LAUNCH CHECK PASSED"
+rm -rf "$CHECKS"
+
 rm -rf dist
 mkdir -p dist
 
