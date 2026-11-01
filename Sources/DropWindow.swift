@@ -75,6 +75,8 @@ final class DropWindow: NSObject {
     private let listHint = label("", size: 11, color: Palette.secondary)
     private let listEmpty = label("Dropped files appear here, each with its genre.", size: 12, color: Palette.dim, align: .center)
     private let setAll = NSPopUpButton(frame: .zero, pullsDown: true)
+    /// The genre last picked in "Set all to…"; the menu shows it while every waiting track still has it.
+    private var setAllChosen: String?
     private let importButton = SettingsButton(title: "Import", action: {})
     private let batchPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let batchLabel = label("Genre", size: 11, color: Palette.secondary, align: .right)
@@ -439,7 +441,7 @@ final class DropWindow: NSObject {
         trackList.onGenreChange = { [weak self] i, g in
             guard let self = self, i < self.items.count, self.items[i].editable else { return }
             self.items[i].genre = g
-            self.trackList.refresh(i)
+            self.refreshList(rebuild: false)
         }
         trackList.onRemove = { [weak self] i in self?.removeItem(at: i) }
         listCard.addSubview(trackList)
@@ -486,6 +488,10 @@ final class DropWindow: NSObject {
         importButton.frame = NSRect(x: 506 - 112, y: 10, width: 112, height: 26)
         setAll.isHidden = !Prefs.perTrack || (ready + waiting) == 0
         setAll.frame.origin.x = importButton.isHidden ? 506 - 112 : 506 - 112 - 118
+        let editable = items.filter { $0.editable }
+        if let g = setAllChosen, editable.isEmpty || editable.contains(where: { $0.genre != g }) { setAllChosen = nil }
+        setAll.item(at: 0)?.title = setAllChosen ?? "Set all to…"
+        setAll.selectItem(at: 0)
         if ready > 0 && items.contains(where: { $0.fromWatch && $0.state == .ready }) && Prefs.afterImport == "folder" && Prefs.backupFolder == nil {
             listHint.stringValue = "No backup folder chosen yet (see Settings)."
         } else if ready > 0 {
@@ -514,9 +520,9 @@ final class DropWindow: NSObject {
     }
 
     @objc private func setAllPicked() {
-        guard let g = setAll.titleOfSelectedItem, g != "Set all to…" else { return }
+        guard setAll.indexOfSelectedItem > 0, let g = setAll.titleOfSelectedItem else { return }
         for item in items where item.editable { item.genre = g }
-        setAll.selectItem(at: 0)
+        setAllChosen = g
         refreshList(rebuild: false)
     }
 
@@ -636,7 +642,7 @@ final class DropWindow: NSObject {
         } else if n > 0 {
             let fromWatch = items.contains { $0.fromWatch && $0.state == .ready }
             idleTitle.stringValue = fromWatch ? (n == 1 ? "1 new download" : "\(n) new downloads") : (n == 1 ? "1 file ready" : "\(n) files ready")
-            statusLabel.attributedStringValue = statusText(idleTitle.stringValue, "choose genres below")
+            statusLabel.attributedStringValue = statusText(idleTitle.stringValue, "choose genres above")
         } else {
             if items.allSatisfy({ $0.state == .ready || $0.state == .waiting }) { items = []; refreshList(rebuild: true) }
             showIdle()
@@ -750,7 +756,7 @@ final class DropWindow: NSObject {
             idleTitle.stringValue = fromWatch ? (n == 1 ? "1 new download" : "\(n) new downloads") : (n == 1 ? "1 file ready" : "\(n) files ready")
             idleSub.stringValue = fromWatch ? "Found in \(Prefs.watchFolder.lastPathComponent) · press Import" : "Check each genre in the list, then press Import"
             show(idleView)
-            statusLabel.attributedStringValue = statusText(idleTitle.stringValue, "choose genres below")
+            statusLabel.attributedStringValue = statusText(idleTitle.stringValue, "choose genres above")
             return
         }
         if processing { updateRunHeader() } // files from Finder or the Dock arrive one at a time
