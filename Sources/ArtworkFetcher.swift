@@ -47,13 +47,19 @@ final class ArtworkFetcher {
             if let r = artworkFolder(beside: file, artist: artist, album: album) { return r }
         }
         guard Prefs.onlineArtwork else { return nil }
-        var candidates: [ArtworkResult] = []
-        if let r = fetchITunes(artist: artist, title: title) { candidates.append(r) }
-        if let r = fetchCoverArtArchive(artist: artist, title: title) { candidates.append(r) }
-        return candidates.max(by: {
-            $0.width.multipliedReportingOverflow(by: $0.height).partialValue
-                < $1.width.multipliedReportingOverflow(by: $1.height).partialValue
-        })
+        // First the cover of this exact version (a remix's own cover); if no catalogue
+        // lists the remix, the original song's cover stands in rather than none.
+        for sameRemix in [true, false] {
+            var candidates: [ArtworkResult] = []
+            if let r = fetchITunes(artist: artist, title: title, sameRemix: sameRemix) { candidates.append(r) }
+            if let r = fetchCoverArtArchive(artist: artist, title: title, sameRemix: sameRemix) { candidates.append(r) }
+            if let best = candidates.max(by: {
+                $0.width.multipliedReportingOverflow(by: $0.height).partialValue
+                    < $1.width.multipliedReportingOverflow(by: $1.height).partialValue
+            }) { return best }
+            if Self.remixer(title).isEmpty { break }   // not a remix: nothing looser to try
+        }
+        return nil
     }
 
     // MARK: - matching
@@ -87,14 +93,15 @@ final class ArtworkFetcher {
         return a.contains { t.contains($0) }
     }
 
-    static func titleMatches(_ ours: String, _ theirs: String) -> Bool {
+    static func titleMatches(_ ours: String, _ theirs: String, sameRemix: Bool = true) -> Bool {
         let a = titleCore(ours), b = titleCore(theirs)
         guard !a.isEmpty, !b.isEmpty else { return false }
         guard a == b || a.hasPrefix(b) || b.hasPrefix(a) else { return false }
         // A remix has its own cover: "Roses (Imanbek Remix)" must not take the cover of
         // the original "Roses", and the original must not take a remix's cover.
         // Plain versions (Extended Mix, Radio Edit, Original Mix...) count as the original.
-        return remixer(ours) == remixer(theirs)
+        // Stand-in for a remix nobody lists: the original's cover, never another remix's.
+        return sameRemix ? remixer(ours) == remixer(theirs) : remixer(theirs).isEmpty
     }
 
     /// The remixer named in a title's brackets, e.g. "Roses (Imanbek Remix Extended)" -> "imanbek";
@@ -164,7 +171,7 @@ final class ArtworkFetcher {
 
     // MARK: - iTunes Search API
 
-    private func fetchITunes(artist: String, title: String) -> ArtworkResult? {
+    private func fetchITunes(artist: String, title: String, sameRemix: Bool) -> ArtworkResult? {
         let term = "\(Self.artists(artist).first ?? artist) \(Self.titleCore(title))".trimmingCharacters(in: .whitespaces)
         guard !term.isEmpty,
               let encoded = term.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
@@ -176,7 +183,7 @@ final class ArtworkFetcher {
 
         // only a result whose artist AND title match
         let matching = results.filter {
-            Self.artistMatches(artist, $0["artistName"] as? String ?? "") && Self.titleMatches(title, $0["trackName"] as? String ?? "")
+            Self.artistMatches(artist, $0["artistName"] as? String ?? "") && Self.titleMatches(title, $0["trackName"] as? String ?? "", sameRemix: sameRemix)
         }
         guard let best = matching.first else { return nil }
         guard let artURLString = (best["artworkUrl100"] as? String)
@@ -207,7 +214,7 @@ final class ArtworkFetcher {
 
     // MARK: - MusicBrainz + Cover Art Archive
 
-    private func fetchCoverArtArchive(artist: String, title: String) -> ArtworkResult? {
+    private func fetchCoverArtArchive(artist: String, title: String, sameRemix: Bool) -> ArtworkResult? {
         var query = "recording:\"\(Self.titleCore(title))\""
         if let first = Self.artists(artist).first { query += " AND artist:\"\(first)\"" }
         var comps = URLComponents(string: "https://musicbrainz.org/ws/2/recording/")!
@@ -227,7 +234,7 @@ final class ArtworkFetcher {
         for rec in recordings {
             // only recordings whose credited artist and title really match
             let credit = (rec["artist-credit"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }.joined(separator: ", ")
-            guard Self.artistMatches(artist, credit), Self.titleMatches(title, rec["title"] as? String ?? "") else { continue }
+            guard Self.artistMatches(artist, credit), Self.titleMatches(title, rec["title"] as? String ?? "", sameRemix: sameRemix) else { continue }
             if let groups = rec["release-groups"] as? [[String: Any]] {
                 for g in groups where groupIDs.count < 3 {
                     if let id = g["id"] as? String, !groupIDs.contains(id) {

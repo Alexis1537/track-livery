@@ -56,6 +56,10 @@ struct SafetyChecks {
         precondition(ArtworkFetcher.titleMatches("Roses (Extended Mix)", "Roses"), "extended mix refused original cover")
         precondition(ArtworkFetcher.titleMatches("Cherry Moon (Radio Edit)", "Cherry Moon"), "radio edit refused original cover")
 
+        // Stand-in for an unlisted remix: the original's cover, never another remix's.
+        precondition(ArtworkFetcher.titleMatches("Roses (Imanbek Remix Extended)", "Roses", sameRemix: false), "no stand-in cover")
+        precondition(!ArtworkFetcher.titleMatches("Roses (Imanbek Remix Extended)", "Roses (Other Remix)", sameRemix: false), "another remix's cover used")
+
         print("SAFETY CHECKS PASSED")
     }
 }
