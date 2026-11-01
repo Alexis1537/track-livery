@@ -90,7 +90,31 @@ final class ArtworkFetcher {
     static func titleMatches(_ ours: String, _ theirs: String) -> Bool {
         let a = titleCore(ours), b = titleCore(theirs)
         guard !a.isEmpty, !b.isEmpty else { return false }
-        return a == b || a.hasPrefix(b) || b.hasPrefix(a)
+        guard a == b || a.hasPrefix(b) || b.hasPrefix(a) else { return false }
+        // A remix has its own cover: "Roses (Imanbek Remix)" must not take the cover of
+        // the original "Roses", and the original must not take a remix's cover.
+        // Plain versions (Extended Mix, Radio Edit, Original Mix...) count as the original.
+        return remixer(ours) == remixer(theirs)
+    }
+
+    /// The remixer named in a title's brackets, e.g. "Roses (Imanbek Remix Extended)" -> "imanbek";
+    /// "" for the original and its plain versions.
+    static func remixer(_ t: String) -> String {
+        let generic: Set<String> = ["extended", "original", "mix", "radio", "edit", "club", "version",
+                                    "remaster", "remastered", "full", "length", "single", "album",
+                                    "short", "long", "instrumental", "clean", "explicit", "the"]
+        let markers: Set<String> = ["remix", "rmx", "rework", "re-work", "bootleg", "dub", "vip", "flip", "refix", "edit"]
+        guard let re = try? NSRegularExpression(pattern: #"[\(\[]([^\)\]]*)[\)\]]"#) else { return "" }
+        let ns = t as NSString
+        for m in re.matches(in: t, range: NSRange(location: 0, length: ns.length)) {
+            let words = ns.substring(with: m.range(at: 1)).lowercased()
+                .components(separatedBy: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-")).inverted)
+                .filter { !$0.isEmpty }
+            guard words.contains(where: { markers.contains($0) && $0 != "edit" }) else { continue }
+            let name = words.filter { !markers.contains($0) && !generic.contains($0) }
+            if !name.isEmpty { return name.joined(separator: " ") }
+        }
+        return ""
     }
 
     // MARK: - quick checks for the track list's plan

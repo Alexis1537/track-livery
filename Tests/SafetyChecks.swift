@@ -49,6 +49,13 @@ struct SafetyChecks {
         precondition(SourceTags.bpm("0") == nil, "bpm(0) accepted")
         precondition(SourceTags.bpm("124.6") == 125, "bpm(124.6) wrong")
 
+        // A remix never takes the original's cover, nor the original a remix's.
+        precondition(!ArtworkFetcher.titleMatches("Roses (Imanbek Remix Extended)", "Roses"), "remix took original cover")
+        precondition(ArtworkFetcher.titleMatches("Roses (Imanbek Remix Extended)", "Roses (Imanbek Remix)"), "remix cover refused")
+        precondition(!ArtworkFetcher.titleMatches("Roses", "Roses (Imanbek Remix)"), "original took remix cover")
+        precondition(ArtworkFetcher.titleMatches("Roses (Extended Mix)", "Roses"), "extended mix refused original cover")
+        precondition(ArtworkFetcher.titleMatches("Cherry Moon (Radio Edit)", "Cherry Moon"), "radio edit refused original cover")
+
         print("SAFETY CHECKS PASSED")
     }
 }
