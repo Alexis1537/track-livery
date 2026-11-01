@@ -134,6 +134,7 @@ final class DropWindow: NSObject {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 600),
                           styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
                           backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false   // closing only hides it; the Dock icon brings it back
         zone = GlowCardView(frame: NSRect(x: 20, y: 323, width: 304, height: 185), tint: Palette.accent)
         art = GlowCardView(frame: NSRect(x: 340, y: 323, width: 200, height: 185), tint: Palette.cyan)
         listCard = GlowCardView(frame: NSRect(x: 20, y: 95, width: 520, height: 212), tint: Palette.accent)
@@ -186,7 +187,11 @@ final class DropWindow: NSObject {
         startAnimator()
     }
 
-    func show() { window.makeKeyAndOrderFront(nil) }
+    func show() {
+        if window.isMiniaturized { window.deminiaturize(nil) }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
 
     // MARK: building
 

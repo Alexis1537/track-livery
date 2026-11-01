@@ -5,8 +5,9 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 VERSION=$(cat VERSION)
+BUILD_NUMBER=$(cat BUILD_NUMBER)
 APP_NAME="TrackLivery"
-DMG="dist/TrackLivery-${VERSION}.dmg"
+DMG="dist/TrackLivery-${VERSION}-build${BUILD_NUMBER}.dmg"
 
 ./build.sh
 

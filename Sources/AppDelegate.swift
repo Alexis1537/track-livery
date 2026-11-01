@@ -64,6 +64,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         let win = NSMenu(title: "Window")
         win.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         win.addItem(withTitle: "Minimise", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        win.addItem(.separator())
+        let showItem = NSMenuItem(title: "Show Track Livery", action: #selector(showMainWindow), keyEquivalent: "0")
+        showItem.target = self
+        win.addItem(showItem)
         windowItem.submenu = win
         NSApp.mainMenu = main
     }
@@ -98,6 +102,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([])
     }
+
+    /// Clicking the Dock icon brings the window back after it was closed or minimised.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { dropWindow.show() }
+        return true
+    }
+
+    @objc private func showMainWindow() { dropWindow.show() }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false // stay in the Dock, ready for the next drop
