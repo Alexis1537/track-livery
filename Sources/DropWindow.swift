@@ -441,6 +441,7 @@ final class DropWindow: NSObject {
             self.items[i].genre = g
             self.trackList.refresh(i)
         }
+        trackList.onRemove = { [weak self] i in self?.removeItem(at: i) }
         listCard.addSubview(trackList)
         listHint.frame = NSRect(x: 14, y: 15, width: 270, height: 15)
         listCard.addSubview(listHint)
@@ -618,6 +619,27 @@ final class DropWindow: NSObject {
             }
         default:
             break
+        }
+    }
+
+    /// The × on a row: the track leaves this import and is never imported; its file is not touched.
+    /// The folder watcher already counts it as seen, so it does not come back.
+    private func removeItem(at i: Int) {
+        guard i < items.count, items[i].state == .ready || items[i].state == .waiting else { return }
+        items.remove(at: i)
+        batchTotal = max(0, batchTotal - 1)
+        if let c = current { if c == i { current = nil } else if c > i { current = c - 1 } }
+        refreshList(rebuild: true)
+        let n = items.filter { $0.state == .ready }.count
+        if processing {
+            updateRunHeader()
+        } else if n > 0 {
+            let fromWatch = items.contains { $0.fromWatch && $0.state == .ready }
+            idleTitle.stringValue = fromWatch ? (n == 1 ? "1 new download" : "\(n) new downloads") : (n == 1 ? "1 file ready" : "\(n) files ready")
+            statusLabel.attributedStringValue = statusText(idleTitle.stringValue, "choose genres below")
+        } else {
+            if items.allSatisfy({ $0.state == .ready || $0.state == .waiting }) { items = []; refreshList(rebuild: true) }
+            showIdle()
         }
     }
 

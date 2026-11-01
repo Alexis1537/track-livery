@@ -31,6 +31,8 @@ final class TrackItem {
 /// The scrolling list of tracks, each with its own genre menu.
 final class TrackListView: NSView {
     var onGenreChange: ((Int, String) -> Void)?
+    /// The × on a track that has not started: take it out of this import.
+    var onRemove: ((Int) -> Void)?
     /// When false (same genre for the batch) the menus are shown but locked.
     var genresEditable = true
     private let scroll = NSScrollView()
@@ -61,6 +63,7 @@ final class TrackListView: NSView {
             let r = TrackRowView(frame: NSRect(x: 0, y: CGFloat(i) * (rowHeight + 2), width: bounds.width - 16, height: rowHeight))
             r.configure(item, editable: genresEditable && item.editable)
             r.onGenre = { [weak self] g in self?.onGenreChange?(i, g) }
+            r.onRemove = { [weak self] in self?.onRemove?(i) }
             doc.addSubview(r)
             if i >= fresh { StepLogView.rise(r, delay: Double(i - fresh) * 0.08) }
             return r
@@ -92,6 +95,8 @@ final class FlippedView: NSView {
 
 final class TrackRowView: NSView {
     var onGenre: ((String) -> Void)?
+    var onRemove: (() -> Void)?
+    private let remove = NSButton(title: "", target: nil, action: nil)
     private let mark = NSTextField(labelWithString: "·")
     private let name = NSTextField(labelWithString: "")
     private let popup = NSPopUpButton(frame: .zero, pullsDown: false)
@@ -127,6 +132,18 @@ final class TrackRowView: NSView {
         status.alignment = .right
         status.frame = NSRect(x: frame.width - 66, y: 4, width: 60, height: 16)
         for v in [mark, name, popup, status] { addSubview(v) }
+        // a small × in place of the dot, on tracks that have not started yet
+        remove.isBordered = false
+        remove.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Remove from this import")
+        remove.imageScaling = .scaleProportionallyDown
+        remove.contentTintColor = Palette.dim
+        remove.frame = NSRect(x: 5, y: 4, width: 16, height: 16)
+        remove.toolTip = "Leave this file out of the import (the file itself stays where it is)"
+        remove.setAccessibilityLabel("Remove from this import")
+        remove.target = self
+        remove.action = #selector(removePressed)
+        remove.isHidden = true
+        addSubview(remove)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
@@ -173,8 +190,13 @@ final class TrackRowView: NSView {
         case .kept: mark.stringValue = "="; mark.textColor = Palette.secondary; status.stringValue = "Already there"; status.textColor = Palette.secondary
         case .failed: mark.stringValue = "✗"; mark.textColor = Palette.red; status.stringValue = "Failed"; status.textColor = Palette.red
         }
+        let removable = item.state == .ready || item.state == .waiting
+        remove.isHidden = !removable
+        mark.isHidden = removable
         toolTip = item.message
     }
+
+    @objc private func removePressed() { onRemove?() }
 
     @objc private func picked() { if let g = popup.titleOfSelectedItem { onGenre?(g) } }
 }
