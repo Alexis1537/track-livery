@@ -56,8 +56,9 @@ open build/TrackLivery.app
 ```
 
 Without `SIGN_IDENTITY=-`, `build.sh` signs with the maintainer's Developer ID
-certificate; `make-dmg.sh` builds the installer and, with `NOTARY_PROFILE` set,
-notarises it.
+certificate; `make-dmg.sh` builds the installer (it needs
+[dmgbuild](https://github.com/dmgbuild/dmgbuild): `pip install dmgbuild`) and, with
+`NOTARY_PROFILE` set, notarises it.
 
 | File | What it does |
 |---|---|

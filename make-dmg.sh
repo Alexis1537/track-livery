@@ -12,54 +12,13 @@ DMG="dist/TrackLivery-${VERSION}-build${BUILD_NUMBER}.dmg"
 ./build.sh
 
 rm -rf dist
-mkdir -p dist/stage
-cp -R "build/${APP_NAME}.app" dist/stage/
-ln -s /Applications dist/stage/Applications
-cp Resources/AppIcon.icns dist/stage/.VolumeIcon.icns
-mkdir -p dist/stage/.background
-python3 assets/dmg_background.py dist/stage/.background/background.png
+mkdir -p dist
 
-# Create a read-write image, arrange the icons, then compress it read-only.
-hdiutil create -volname "Track Livery" -srcfolder dist/stage -ov -format UDRW dist/tmp.dmg > /dev/null
-# Attach without an explicit mount point: a custom --mountPoint under the repo
-# is denied in some contexts, /Volumes always works.
-DEVICE=$(timeout 60 hdiutil attach dist/tmp.dmg 2>/dev/null | grep '/Volumes/' | awk '{print $1}' | head -1)
-[ -n "$DEVICE" ] || { echo "attach failed"; exit 1; }
-echo "mounted $DEVICE"
-sleep 2   # let Finder register the new disk before arranging it
-
-# Arrange the icons and set the background. This needs Finder automation
-# permission; if it is not granted yet, the DMG is still created (just with
-# the default layout) - allow Terminal to control Finder once and rerun.
-if timeout 25 osascript <<'EOF'
-tell application "Finder"
-  tell disk "Track Livery"
-    open
-    set current view of container window to icon view
-    set toolbar visible of container window to false
-    set statusbar visible of container window to false
-    set bounds of container window to {72, 72, 712, 492}
-    set background picture of container window to file ".background:background.png"
-    set arrangement of container window to not arranged
-    set icon size of container window to 96
-    set position of item "TrackLivery.app" of container window to {150, 180}
-    set position of item "Applications" of container window to {490, 180}
-    update without registering applications
-    delay 1
-    close
-  end tell
-end tell
-EOF
-then
-  echo "DMG layout customized"
-else
-  echo "note: Finder layout skipped (grant Terminal control of Finder once, then rerun for the custom background)"
-fi
-
-hdiutil detach "$DEVICE" > /dev/null 2>&1 || diskutil image detach "$DEVICE" > /dev/null 2>&1 || diskutil unmount "$DEVICE" > /dev/null 2>&1
-sleep 1
-hdiutil convert dist/tmp.dmg -format UDZO -o "$DMG" > /dev/null
-rm -rf dist/stage dist/tmp.dmg
+# Lay out the installer window with dmgbuild (pip install dmgbuild). It writes the
+# layout and background itself, so it works without Finder automation.
+DMGBUILD="${DMGBUILD:-$(command -v dmgbuild || echo "$HOME/Developer/.cache/dmgbuild-venv/bin/dmgbuild")}"
+[ -x "$DMGBUILD" ] || { echo "dmgbuild not found: pip install dmgbuild, or set DMGBUILD"; exit 1; }
+"$DMGBUILD" -s dmg-settings.py -D app="build/${APP_NAME}.app" "Track Livery" "$DMG"
 
 # Sign the disk image, then (when a notarisation profile is set) send it to Apple's
 # malware check and staple the approval to it, so it opens without a warning offline.
