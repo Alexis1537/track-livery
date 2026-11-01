@@ -110,14 +110,16 @@ final class ArtworkFetcher {
         let generic: Set<String> = ["extended", "original", "mix", "radio", "edit", "club", "version",
                                     "remaster", "remastered", "full", "length", "single", "album",
                                     "short", "long", "instrumental", "clean", "explicit", "the"]
-        let markers: Set<String> = ["remix", "rmx", "rework", "re-work", "bootleg", "dub", "vip", "flip", "refix", "edit"]
+        let markers: Set<String> = ["remix", "rmx", "rework", "re-work", "bootleg", "dub", "vip", "flip", "refix",
+                                    "edit", "mix", "treatment", "version", "remode", "rethink"]
         guard let re = try? NSRegularExpression(pattern: #"[\(\[]([^\)\]]*)[\)\]]"#) else { return "" }
         let ns = t as NSString
         for m in re.matches(in: t, range: NSRange(location: 0, length: ns.length)) {
             let words = ns.substring(with: m.range(at: 1)).lowercased()
                 .components(separatedBy: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-")).inverted)
                 .filter { !$0.isEmpty }
-            guard words.contains(where: { markers.contains($0) && $0 != "edit" }) else { continue }
+            // "(Dixon Mix)" names a remixer; "(Extended Mix)" or "(Radio Edit)" names none
+            guard words.contains(where: { markers.contains($0) }) else { continue }
             let name = words.filter { !markers.contains($0) && !generic.contains($0) }
             if !name.isEmpty { return name.joined(separator: " ") }
         }
@@ -172,10 +174,21 @@ final class ArtworkFetcher {
     // MARK: - iTunes Search API
 
     private func fetchITunes(artist: String, title: String, sameRemix: Bool) -> ArtworkResult? {
-        let term = "\(Self.artists(artist).first ?? artist) \(Self.titleCore(title))".trimmingCharacters(in: .whitespaces)
-        guard !term.isEmpty,
-              let encoded = term.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://itunes.apple.com/search?term=\(encoded)&entity=song&limit=10"),
+        // Search for the remix by name, so it is among the results; Apple's catalogue
+        // differs by country, so try the Mac's own store first, then the US and UK stores.
+        let mix = sameRemix ? Self.remixer(title) : ""
+        let term = "\(Self.artists(artist).first ?? artist) \(Self.titleCore(title)) \(mix)".trimmingCharacters(in: .whitespaces)
+        guard !term.isEmpty, let encoded = term.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
+        var stores: [String] = []
+        for c in [Locale.current.region?.identifier, "US", "GB"].compactMap({ $0?.uppercased() }) where !stores.contains(c) { stores.append(c) }
+        for store in stores {
+            if let r = searchITunes(encoded, store: store, artist: artist, title: title, sameRemix: sameRemix) { return r }
+        }
+        return nil
+    }
+
+    private func searchITunes(_ encoded: String, store: String, artist: String, title: String, sameRemix: Bool) -> ArtworkResult? {
+        guard let url = URL(string: "https://itunes.apple.com/search?term=\(encoded)&entity=song&limit=25&country=\(store)"),
               let data = syncData(url, limit: Self.maxJSONBytes),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let results = json["results"] as? [[String: Any]], !results.isEmpty
@@ -216,12 +229,14 @@ final class ArtworkFetcher {
 
     private func fetchCoverArtArchive(artist: String, title: String, sameRemix: Bool) -> ArtworkResult? {
         var query = "recording:\"\(Self.titleCore(title))\""
+        let mix = Self.remixer(title)
+        if sameRemix && !mix.isEmpty { query += " AND \"\(mix)\"" }
         if let first = Self.artists(artist).first { query += " AND artist:\"\(first)\"" }
         var comps = URLComponents(string: "https://musicbrainz.org/ws/2/recording/")!
         comps.queryItems = [
             URLQueryItem(name: "query", value: query),
             URLQueryItem(name: "fmt", value: "json"),
-            URLQueryItem(name: "limit", value: "5"),
+            URLQueryItem(name: "limit", value: "15"),
             URLQueryItem(name: "inc", value: "releasegroups"),
         ]
         guard let url = comps.url,
@@ -237,6 +252,9 @@ final class ArtworkFetcher {
             guard Self.artistMatches(artist, credit), Self.titleMatches(title, rec["title"] as? String ?? "", sameRemix: sameRemix) else { continue }
             if let groups = rec["release-groups"] as? [[String: Any]] {
                 for g in groups where groupIDs.count < 3 {
+                    // a compilation or DJ mix has its own cover, not the track's
+                    let secondary = (g["secondary-types"] as? [String] ?? []).map { $0.lowercased() }
+                    if secondary.contains("compilation") || secondary.contains("dj-mix") || secondary.contains("mixtape/street") { continue }
                     if let id = g["id"] as? String, !groupIDs.contains(id) {
                         groupIDs.append(id)
                     }

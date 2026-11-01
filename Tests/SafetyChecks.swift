@@ -60,6 +60,12 @@ struct SafetyChecks {
         precondition(ArtworkFetcher.titleMatches("Roses (Imanbek Remix Extended)", "Roses", sameRemix: false), "no stand-in cover")
         precondition(!ArtworkFetcher.titleMatches("Roses (Imanbek Remix Extended)", "Roses (Other Remix)", sameRemix: false), "another remix's cover used")
 
+        // A remixer named before Mix / Treatment counts as a remix too.
+        precondition(!ArtworkFetcher.titleMatches("Compurhythm", "Compurhythm (Dixon 4 / 4 Treatment)"), "original took a Treatment's cover")
+        precondition(!ArtworkFetcher.titleMatches("Compurhythm", "Compurhythm (Dixon Mix)"), "original took a named mix's cover")
+        precondition(ArtworkFetcher.titleMatches("Compurhythm (Original Mix)", "Compurhythm"), "original mix refused original cover")
+        precondition(ArtworkFetcher.titleMatches("Compurhythm (Club Version)", "Compurhythm"), "club version refused original cover")
+
         print("SAFETY CHECKS PASSED")
     }
 }
