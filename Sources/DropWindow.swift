@@ -490,8 +490,12 @@ final class DropWindow: NSObject {
         setAll.frame.origin.x = importButton.isHidden ? 506 - 112 : 506 - 112 - 118
         let editable = items.filter { $0.editable }
         if let g = setAllChosen, editable.isEmpty || editable.contains(where: { $0.genre != g }) { setAllChosen = nil }
-        setAll.item(at: 0)?.title = setAllChosen ?? "Set all to…"
-        setAll.selectItem(at: 0)
+        // The menu is still empty during start-up (filled by prefsChanged): touching item 0 then
+        // raises an exception that stops the app from launching (build 104).
+        if setAll.numberOfItems > 0 {
+            setAll.item(at: 0)?.title = setAllChosen ?? "Set all to…"
+            setAll.selectItem(at: 0)
+        }
         if ready > 0 && items.contains(where: { $0.fromWatch && $0.state == .ready }) && Prefs.afterImport == "folder" && Prefs.backupFolder == nil {
             listHint.stringValue = "No backup folder chosen yet (see Settings)."
         } else if ready > 0 {
